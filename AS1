@@ -1,0 +1,189 @@
+foo <- read.csv("https://tinyurl.com/yb4phxx8") 
+
+
+for(i in date.columns)
+{
+  which_values_are_missing <- which(as.character(foo[, i]) == "")
+  foo[which_values_are_missing, i] <- NA
+  foo[, i] <- as.Date(as.character(foo[, i]))
+}
+
+
+which.have.NAs <- which(is.na(foo$CirculationDate == TRUE)) 
+new_foo <- foo[-which.have.NAs, ]
+foo2008 <- subset(new_foo, CirculationDate >= as.Date("2008-01-01"))
+
+
+# (1) When projects are approved, they are approved for a certain period of time (until the time of
+# "original completion date"). While projects are active, this "original" completion date is 
+# often pushed out (extended), and then there is a "revised" completion date.
+
+# You have been told that project duration at approval is generally about 
+# 2 years (24 months). In other words, (purportedly) when projects are approved, the difference 
+# between the original project completion date and the the approval date is (supposedly) 
+# approximately 24 months. 
+
+# (a) Is this claim true? Explain.
+# Has project duration at approval changed over time (consider projects circulated earlier
+# and circulated later). Be sure to discuss mean durations, median durations, and the
+# interquartile range of durations (using the "quantile" function). 
+# Approximate suggested length: 3-5 sentences
+
+#Answer (a): 
+NONAS.111718 <- which(is.na(foo2008[c("ApprovalDate","OrignialCompletionDate","RevisedCompletionDate"),] == TRUE)) 
+NONAS1 <- foo2008[-NONAS.111718, ]
+dif <- (NONAS1[, 17] - NONAS1[, 11])
+
+par(mar=c(2,6,4,2))
+plot(dif, 
+     xaxt = "n",
+     main = "Density map of project duration at approval", 
+     ylab = "Project Duration at Approval\n (in days)",
+     )
+
+new_dif1 <- subset(dif, dif <= 1000)
+cat("There are", length(new_dif1 == TRUE), "projects", "\n")
+round(mean(head(new_dif1, 787)), digits=1) #Mean of first half
+median(new_dif1)
+round(mean(tail(new_dif1, 787)), digits=1) #Mean of the other half
+
+
+# (b) How does original planned project duration differ from actual duration (if actual duration is 
+# measured as the duration between "ApprovalDate" and "RevisedCompletionDate"?)  Once again, use
+# means, medians, and interquartile ranges to explain your results. 
+# Approximate suggested length: 3-5 sentences
+dif2 <- (NONAS1[, 18] - NONAS1[, 17])
+cat("Mean actual project duration = ", round(mean(dif2), digits = 1), "days", "\n")
+
+mean(dif2)
+median(dif2)
+
+par(mar=c(2,6,4,2))
+plot(dif2, 
+     xaxt = "n",
+     main = "Density map of actual project duration", 
+     ylab = "Actual Project Duration\n (in days)",
+     ) 
+
+new_dif2 <- subset(dif, dif <= 1000)
+cat("There are", length(new_dif2 == TRUE), "projects", "\n")
+round(mean(head(new_dif2, 776)), digits=1) #Mean of first half
+median(dif2)
+round(mean(tail(new_dif2, 776)), digits=1) #Mean of the other half
+
+
+#The below is the calculation for the datasets WITH outliers to explain 
+#why the pattern of change in duration over time between Part A and Part B may look very different 
+#when you do not remove the outliers. 
+
+cat("There are", length(dif == TRUE), "projects", "\n")
+round(mean(head(dif, 899)), digits=1) #Mean of first half
+median(dif)
+round(mean(tail(dif, 899)), digits=1) #Mean of the other half
+
+cat("There are", length(dif2 == TRUE), "projects", "\n")
+round(mean(head(dif2, 443)), digits=1) #Mean of first half
+median(dif2)
+round(mean(tail(dif2, 443)), digits=1) #Mean of the other half
+
+
+
+# (2) What % of projects that have ratings were rated 0?
+# What % were rated 1? What % were rated 2? What % were rated 3? Answer these questions using a table
+# or a figure. Provide a title AND an explanatory sentence or two that provides the numerical % results
+# rounded to the nearest percentage-point.
+
+#Answer(2):
+probs_rate0 = length(which(foo2008$Rating==0))/length(foo2008$Rating)*100
+probs_rate1 = length(which(foo2008$Rating==1))/length(foo2008$Rating)*100
+probs_rate2 = length(which(foo2008$Rating==2))/length(foo2008$Rating)*100
+probs_rate3 = length(which(foo2008$Rating==3))/length(foo2008$Rating)*100
+p0 <- round(probs_rate0, digits = 1)
+p1 <- round(probs_rate1, digits = 1)
+p2 <- round(probs_rate2, digits = 1)
+p3 <- round(probs_rate3, digits = 1)
+
+
+p <- c(p0, p1, p2, p3)
+par(mar=c(10, 6, 2, 2))
+par(mgp=c(2.5, 1, 0))
+barplot(p,
+     names.arg=c("0","1","2","3"),
+     main = "Percentage of each rating", 
+     xlim = c(0,5),
+     ylim = c(0,100),
+     ylab = "Percentage\n (in %)",
+     xlab = "Rating",
+     axis.lty=1
+)
+
+# (3) Repeat problem 2, but this time exclude all PPTA projects. PPTA projects are more prone to 
+# negative ratings, because after a certain point in time only the low-rated PPTA projects required
+# ratings.  PPTA stands for "Project Preparatory Technical Assistance" and it is basically a project
+# intended to set up a loan (often a very large multi-million-dollar loan). Only PPTAs that fail to 
+# "eventuate" to a loan are rated, which is why they are usually rated negatively.
+
+#Answer (3):
+#First, prosess the data by excluding the PPTA projects
+PPTA <- which(foo2008$Type == "PPTA")
+NOPPTA <- foo2008[-PPTA, ]
+
+#In a similar manner to the Answer 2, 
+new_probs_rate0 = length(which(NOPPTA$Rating==0))/length(NOPPTA$Rating)*100
+new_probs_rate1 = length(which(NOPPTA$Rating==1))/length(NOPPTA$Rating)*100
+new_probs_rate2 = length(which(NOPPTA$Rating==2))/length(NOPPTA$Rating)*100
+new_probs_rate3 = length(which(NOPPTA$Rating==3))/length(NOPPTA$Rating)*100
+new_p0 <- round(new_probs_rate0, digits = 1)
+new_p1 <- round(new_probs_rate1, digits = 1)
+new_p2 <- round(new_probs_rate2, digits = 1)
+new_p3 <- round(new_probs_rate3, digits = 1)
+new_p <- c(new_p0, new_p1, new_p2, new_p3)
+
+
+par(mar=c(10, 6, 2.5, 2))
+par(mgp=c(2.5, 1, 0))
+barplot(new_p,
+        names.arg=c("0","1","2","3"),
+        main = "Percentage of each rating\nexcluding PPTA projects", 
+        xlim = c(0,5),
+        ylim = c(0,100),
+        ylab = "Percentage\n (in %)",
+        xlab = "Rating",
+        axis.lty=1
+)
+
+
+# (4) Identify the top 25% of projects by "RevisedAmount" and the bottom 25% of projects by 
+# "RevisedAmount". ("RevisedAmount" shows the final project budget.)
+# Compare the ratings of these projects. Can you draw a causal conclusion about the effect of 
+# budget size on ratings? Why or why not? 
+# Hint: Compare the characteristics of the two project groupings,
+# e.g., "Dept", "Division", "Cluster", "Country"
+# Approximate suggested length: 3-5 sentences.
+
+#Answer (4): 
+cat("There are", length(NOPPTA$RevisedAmount == TRUE), "projects in NOPPTA dataframe", "\n")
+cat("That said, 1761*0.25 = approximately", round(1761*0.25), "projects make up 25%", "\n")
+
+top25 <- head(NOPPTA[order(NOPPTA$RevisedAmount),], 440)
+top_probs_rate0 = length(which(top25$Rating==0))/length(top25$Rating)*100
+top_probs_rate1 = length(which(top25$Rating==1))/length(top25$Rating)*100
+top_probs_rate2 = length(which(top25$Rating==2))/length(top25$Rating)*100
+top_probs_rate3 = length(which(top25$Rating==3))/length(top25$Rating)*100
+top_p0 <- round(top_probs_rate0, digits = 1)
+top_p1 <- round(top_probs_rate1, digits = 1)
+top_p2 <- round(top_probs_rate2, digits = 1)
+top_p3 <- round(top_probs_rate3, digits = 1)
+top_p <- c(top_p0, top_p1, top_p2, top_p3)
+
+
+bot25 <- tail(NOPPTA[order(NOPPTA$RevisedAmount),], 440)
+bot_probs_rate0 = length(which(bot25$Rating==0))/length(bot25$Rating)*100
+bot_probs_rate1 = length(which(bot25$Rating==1))/length(bot25$Rating)*100
+bot_probs_rate2 = length(which(bot25$Rating==2))/length(bot25$Rating)*100
+bot_probs_rate3 = length(which(bot25$Rating==3))/length(bot25$Rating)*100
+bot_p0 <- round(bot_probs_rate0, digits = 1)
+bot_p1 <- round(bot_probs_rate1, digits = 1)
+bot_p2 <- round(bot_probs_rate2, digits = 1)
+bot_p3 <- round(bot_probs_rate3, digits = 1)
+bot_p <- c(bot_p0, bot_p1, bot_p2, bot_p3)
