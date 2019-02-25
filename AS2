@@ -1,4 +1,3 @@
-
 #Question 1
 
 set.seed(1)
@@ -218,21 +217,27 @@ all_pred<-predict(sample_glm,type="response")
 #Assigned to the treatment group 
 sample_lalonde_treat <- which(treat==1)
 hist(all_pred[sample_lalonde_treat],
-     main='The distribution of probabilities of \n being assigned to the treatment group',
+     main='Distribution of probabilities of \n being assigned to treatment or control group',
      xlab='Probability',  
      breaks=50, 
      xlim = c(0.35, 0.55),
-     ylim = c(0,60), 
-     col = "red"
+     ylim = c(0,70), 
+     col = "#ff00ff60"
      )
 
 #Assigned to the control group
 sample_lalonde_control <- which(treat==0)
 hist(all_pred[sample_lalonde_control],
-     main='The distribution of probabilities of \n being assigned to the control group',
      xlab='Probability',  
      breaks=50, 
      xlim = c(0.35, 0.55),
-     ylim = c(0,60), 
-     col = "blue"
+     ylim = c(0,70), 
+     col = "#0000ff60",
+     add=TRUE
 )
+
+legend("topright", 
+       c("Treatment group", "Control group"), 
+       col=c("#ff00ff60", "#0000ff60"),
+       pch=1, 
+       cex=0.95)
