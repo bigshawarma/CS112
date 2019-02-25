@@ -1,0 +1,238 @@
+
+#Question 1
+
+set.seed(1)
+x <- 1:999
+#x = number of times my grandma saw my friend
+y <- 0.8*x+0.1+rnorm(999, 0, 40)
+#y = likelihood that my grandma remembers my friend's name
+grandmaknows <- data.frame(x,y)
+summary(grandmaknows)
+added <- rbind(grandmaknows, c(1000,-1000000))
+summary(added)
+plot(grandmaknows, 
+     main = "Regression for likelihood that my grandma \n remembers my friend's name", 
+     xlab = "Number of times my grandma saw my friend", 
+     ylab = "Likelihood of my grandma remembers \n my friend's name")
+par(mgp=c(2.1,1,0))
+abline(lm(y~x, data=grandmaknows), col="red")
+abline(lm(y~x, data=added), col="blue")
+
+#################################
+
+#Question 2
+library(arm)
+library(Matching)
+data(lalonde)
+control <- lalonde[lalonde$treat !=1,]
+attach(control)
+linear <- lm(re78~age+educ+re74+re75+I(educ*re74)+I(educ*re75)+I(age*re74)+I(age*re75)+I(age*age)+I(re74*re75), data=control)
+simulated <- sim(linear,1000)
+
+#2a (1)
+#Upper and lower bound for predicted values for re78 
+#while holding predictors at their medians
+storage.median <- Matrix(NA, nrow=1000, ncol=55-17+1)
+for(age in c(17:55)) {
+  m.educ <- median(educ)
+  m.re74 <- median(re74)
+  m.re75 <- median(re75)
+  for (i in c(1:1000)) {
+    m.combine <- c(1,age,m.educ,m.re74,m.re75,I(m.educ*m.re74),I(m.educ*m.re75),I(age*m.re74),I(age*m.re75),I(age*age),I(m.re74*m.re75))
+    storage.median[i,age-16] <- sum(m.combine*simulated@coef[i,])
+    #All the coefficients (for 10 predictors) will be summed up every trail 
+  }
+}
+conf.median <- apply(storage.median, 2, quantile, probs=c(0.025, 0.975))
+colnames(conf.median) <- c(17:55)
+conf.median
+
+
+#2a (2)
+#Upper and lower bound for expected values for re78
+#while holding predictors at their 75% quantiles
+storage.75 <- Matrix(NA, nrow=1000, ncol=39)
+for(age in c(17:55)) {
+  educ.75 <- quantile(educ, 0.75)
+  re74.75 <- quantile(re74, 0.75)
+  re75.75 <- quantile(re75, 0.75)
+  for (i in c(1:1000)) {
+    combine.75 <- c(1,age,educ.75,re74.75,re75.75,I(educ.75*re74.75),I(educ.75*re75.75),I(age*re74.75),I(age*re75.75),I(age*age),I(re74.75*re75.75))
+    storage.75[i,age-16] <- sum(combine.75*simulated@coef[i,])
+  }
+}
+conf.75 <- apply(storage.75, 2, quantile, probs=c(0.025, 0.975))
+colnames(conf.75) <- c(17:55)
+conf.75
+
+#2a (3)
+#Upper and lower bound for predicted values for re78
+#while holding predictors at their medians
+
+storage.sigmedian <- Matrix(NA, nrow=1000, ncol=39)
+for(age in c(17:55)) {
+  m.educ <- median(educ)
+  m.re74 <- median(re74)
+  m.re75 <- median(re75)
+  for (i in c(1:1000)) {
+    combine.sigmedian <- c(1,age,m.educ,m.re74,m.re75,I(m.educ*m.re74),I(m.educ*m.re75),I(age*m.re74),I(age*m.re75),I(age*age),I(m.re74*m.re75))
+    storage.sigmedian[i,age-16] <- sum(combine.sigmedian*simulated@coef[i,], rnorm(1,0,simulated@sigma[i]))
+  }
+}
+conf.sigmedian <- apply(storage.sigmedian, 2, quantile, probs=c(0.025, 0.975))
+colnames(conf.sigmedian) <- c(17:55)
+conf.sigmedian
+
+#2a (4)
+#Upper and lower bound for predicted values for re78  
+#while holding predictors at their 75% qunatile
+
+storage.sig75 <- Matrix(NA, nrow=1000, ncol=39)
+for(age in c(17:55)) {
+  educ.75 <- quantile(educ, 0.75)
+  re74.75 <- quantile(re74, 0.75)
+  re75.75 <- quantile(re75, 0.75)
+  for (i in c(1:1000)) {
+    combine.sig75 <- c(1,age,educ.75,re74.75,re75.75,I(educ.75*re74.75),I(educ.75*re75.75),I(age*re74.75),I(age*re75.75),I(age*age),I(re74.75*re75.75))
+    storage.sig75[i,age-16] <- sum(combine.sig75*simulated@coef[i,], rnorm(1,0,simulated@sigma[i]))
+  }
+}
+conf.sig75 <- apply(storage.sig75, 2, quantile, probs=c(0.025, 0.975))
+colnames(conf.sig75) <- c(17:55)
+conf.sig75
+
+#Table generated using Google spreadsheet
+
+#2b
+#Confidence intervals (Upper-bound - Lower-bound) for expected values
+range_median <- conf.median[2,] - conf.median[1,]
+range_75 <- conf.75[2,] - conf.75[1,]
+plot(17:55, range_median,
+     main="Confidence intervals change over time\n for expected values",
+     xlab="Age",
+     ylab="Confidence intervals")
+points(range_75, col="blue")
+legend("topleft", 
+       c("Median", "75% quantile"), 
+       title=" Predictors held at  ",
+       col=c("black", "blue"),
+       pch=1, 
+       cex=0.95)
+
+
+#Confidence intervals (Upper-bound - Lower-bound) for predicted values
+range_sigmedian<- conf.sigmedian[2,] - conf.sigmedian[1,]
+range_sig75 <- conf.sig75[2,] - conf.sig75[1,]
+plot(17:55, range_sigmedian, 
+     main="Confidence intervals change over time\n for predicted values",
+     xlab="Age",
+     ylab="Confidence intervals",
+     col="red")
+points(range_sig75, col="green")
+legend("topleft", 
+       c("Median", "75% quantile"), 
+       title=" Predictors held at  ",
+       col=c("red", "green"),
+       pch=1, 
+       cex=0.95)
+
+
+
+
+
+#################################
+
+#Question 3
+set.seed(2)
+PlantGrowth
+new_plant <- subset(PlantGrowth, group!="trt2")
+#Remove observations with group == "trt2"
+attach(new_plant)
+
+control_plant <- subset(new_plant, group == "ctrl")
+treatment_plant <- subset(new_plant, group == "trt1")
+
+lm_plant <- lm(weight~group, data=new_plant)
+conf_plant <- confint(lm_weight, level=0.95)
+
+#analytical confidence interval 
+analytical.conf <- confint(lm_plant) 
+analytical.conf
+
+#Boostrapped interval 
+storage.treatment <- c()
+for (i in 1:10000) {
+  sample_plant <- sample(1:20, 20, replace=TRUE)
+  #This samples the data sets which contain 20 observations "with replacement"
+  #nrow(newplant) = 20
+  sample_df <- new_plant[sample_plant,]
+  lm_plant2 <- lm(weight~group, sample_df)
+  storage.treatment <- append(storage.treatment, lm_plant2$coef[2])
+  }
+
+bootstrapped <- quantile(storage.treatment,probs=c(0.025,0.975))
+bootstrapped
+
+#3(a)
+#Table generated using Google Doc 
+
+#3(b)
+hist(storage.treatment,
+     main="Distirbution of Bootstrapped Confidence Intervals",
+     xlab="Confidence interval",
+     ylab="Frequency",
+     xlim = c(-1.5,1),
+     ylim = c(0,1500),
+     breaks = 20
+     )
+
+
+
+
+#################################
+
+#Question 4
+
+#R2 = 1-(Sum Squared Residuals/Sum Squared Total Error)
+#Sum Squared Residuals = Sum(y - predicted y)^2
+#Sum Squared Total Error = Sum(y - mean of y)^2
+
+R2 <- function(y, y.predicted){
+  R2_formula <- 1 - sum((y-y.predicted)^2)/sum(((y-mean(y))^2))
+}
+
+predicted_model <- predict(lm_plant)
+example <- R2(new_plant$weight, predicted_model)
+example #0.0730776
+
+#################################
+
+#Question 5
+set.seed(3)
+library(foreign)
+sample_lalonde <- read.dta("nsw.dta")
+attach(sample_lalonde)
+sample_glm <- glm(treat~age+education+black+hispanic+married+nodegree+re75, data = sample_lalonde, family = "binomial")
+all_pred<-predict(sample_glm,type="response")
+
+#Assigned to the treatment group 
+sample_lalonde_treat <- which(treat==1)
+hist(all_pred[sample_lalonde_treat],
+     main='The distribution of probabilities of \n being assigned to the treatment group',
+     xlab='Probability',  
+     breaks=50, 
+     xlim = c(0.35, 0.55),
+     ylim = c(0,60), 
+     col = "red"
+     )
+
+#Assigned to the control group
+sample_lalonde_control <- which(treat==0)
+hist(all_pred[sample_lalonde_control],
+     main='The distribution of probabilities of \n being assigned to the control group',
+     xlab='Probability',  
+     breaks=50, 
+     xlim = c(0.35, 0.55),
+     ylim = c(0,60), 
+     col = "blue"
+)
