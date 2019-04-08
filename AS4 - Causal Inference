@@ -1,0 +1,274 @@
+king <- read.csv("https://tinyurl.com/y2zt2hyc")
+
+###############################
+#THE FOLLOWING 3 LINES ARE COPIED FROM CLASS INSTRUCTION
+# extract relevant columns
+#Here, I added columns for logdead and uncint
+king <- king[, c(6:8, 11:16, 99, 50, 114, 49, 63, 136, 109, 126, 48, 160, 142, 10, 52, 108)]
+
+# remove 2 rows with missing data (there are better ways to handle missing data, but this is fine for now.)
+king <- king[c(-19, -47), ]
+
+# check that all missing data is gone...
+which(is.na(king) == TRUE)
+###############################
+
+
+original <- glm(pbs2s3 ~ wartype + logcost + wardur + 
+                  factnum + factnum2 + trnsfcap + untype4 + 
+                  treaty + develop + exp + decade, 
+                data = king,family = binomial)
+
+interaction <- glm(pbs2s3 ~ wartype + logcost + wardur + 
+                     factnum + factnum2 + trnsfcap + untype4 + 
+                     treaty + develop + exp + decade + (logdead*untype4), 
+                   data = king,family = binomial)
+
+
+attach(king)
+#Hold constant all other variables than wardur at their means
+mean.wartype <- mean(wartype)
+mean.logcost <- mean(logcost)
+mean.factnum <- mean(factnum)
+mean.factnum2 <- mean(factnum2)
+mean.trnsfcap <- mean(trnsfcap)
+mean.untype4 <- mean(untype4)
+mean.develop <- mean(develop)
+mean.exp <- mean(exp)
+mean.decade <- mean(decade)
+mean.treaty <- mean(treaty)
+mean.logdead <- mean(logdead)
+detach(king)
+
+
+storage.org.control <- rep(NA,315)
+storage.org.treat <- rep(NA,315)
+storage.int.control <- rep(NA,315)
+storage.int.treat <- rep(NA,315)
+
+
+#Original model 
+#For each war duration,predict
+for(wardur in c(1:315)){
+  #the first vector represents the intercept
+  #untype = 0 for control and 1 for treatment
+  combine.org.control <- c(1,mean.wartype,mean.logcost,wardur, 
+                           mean.factnum,mean.factnum2,mean.trnsfcap,
+                           0,mean.treaty,mean.develop,
+                           mean.exp,mean.decade)
+  combine.org.treat <- c(1,mean.wartype,mean.logcost,wardur, 
+                         mean.factnum,mean.factnum2,mean.trnsfcap,1,
+                         mean.treaty,mean.develop,
+                         mean.exp,mean.decade)
+  
+  #Using the concept of logit (ISLR 4.4)
+  
+  #coef(original)
+  #(Intercept)       wartype       logcost        wardur       factnum      factnum2 
+  #8.6088619754 -1.7420043394 -0.4448499389  0.0063857322 -1.2589333323  0.0616695924 
+  #trnsfcap       untype4        treaty       develop           exp        decade 
+  #0.0040934456  3.1351843070  2.1243681123  0.0007900776 -6.0161788668 -0.2987758338 
+  
+  storage.org.control[wardur] <-  coef(original)[1]+coef(original)[2]*mean.wartype+
+    coef(original)[3]*mean.logcost+coef(original)[4]*wardur+
+    coef(original)[5]*mean.factnum+coef(original)[6]*mean.factnum2+
+    coef(original)[7]*mean.trnsfcap+coef(original)[8]*0+
+    coef(original)[9]*mean.treaty+coef(original)[10]*mean.develop+
+    coef(original)[11]*mean.exp+coef(original)[12]*mean.decade
+  
+  storage.org.treat[wardur] <-  coef(original)[1]+coef(original)[2]*mean.wartype+
+    coef(original)[3]*mean.logcost+coef(original)[4]*wardur+
+    coef(original)[5]*mean.factnum+coef(original)[6]*mean.factnum2+
+    coef(original)[7]*mean.trnsfcap+coef(original)[8]*1+
+    coef(original)[9]*mean.treaty+coef(original)[10]*mean.develop+
+    coef(original)[11]*mean.exp+coef(original)[12]*mean.decade
+  
+}
+
+
+#continuation: Using the concept of logit (ISLR 4.4)
+org.effect.control <- exp(storage.org.control)/(1+exp(storage.org.control))
+org.effect.treat <- exp(storage.org.treat)/(1+exp(storage.org.treat))
+org.marginal.effect <- org.effect.treat - org.effect.control
+
+
+#Model with interaction term
+#For each war duration,predict
+for(wardur in c(1:315)){
+  #the first vector represents the intercept
+  #untype = 0 for control and 1 for treatment
+  combine.int.control <- c(1,mean.wartype,mean.logcost,wardur, 
+                           mean.factnum,mean.factnum2,mean.trnsfcap,
+                           0,mean.treaty,mean.develop,
+                           mean.exp,mean.decade, mean.logdead)
+  combine.int.treat <- c(1,mean.wartype,mean.logcost,wardur, 
+                         mean.factnum,mean.factnum2,mean.trnsfcap,1,
+                         mean.treaty,mean.develop,
+                         mean.exp,mean.decade, mean.logdead)
+  
+  #Using the concept of logit (ISLR 4.4)
+  
+  #coef(interaction)
+  #(Intercept)         wartype         logcost          wardur         factnum 
+  #8.3266081852   -1.7801372060   -0.5018941039    0.0063563320   -1.2976171586 
+  #factnum2        trnsfcap         untype4          treaty         develop 
+  #0.0637075719    0.0042862922    5.0040469081    2.1183472566    0.0007967408 
+  #exp              decade          logdead        untype4:logdead 
+  #-5.8909590774   -0.2710681618    0.0935239763   -0.1540080410 
+  
+  storage.int.control[wardur] <-  coef(interaction)[1]+coef(interaction)[2]*mean.wartype+
+    coef(interaction)[3]*mean.logcost+coef(interaction)[4]*wardur+
+    coef(interaction)[5]*mean.factnum+coef(interaction)[6]*mean.factnum2+
+    coef(interaction)[7]*mean.trnsfcap+coef(interaction)[8]*0+
+    coef(interaction)[9]*mean.treaty+coef(interaction)[10]*mean.develop+
+    coef(interaction)[11]*mean.exp+coef(interaction)[12]*mean.decade+
+    coef(interaction)[13]*mean.logdead+coef(interaction)[14]*(mean.logdead*0)
+  
+  storage.int.treat[wardur] <-  coef(interaction)[1]+coef(interaction)[2]*mean.wartype+
+    coef(interaction)[3]*mean.logcost+coef(interaction)[4]*wardur+
+    coef(interaction)[5]*mean.factnum+coef(interaction)[6]*mean.factnum2+
+    coef(interaction)[7]*mean.trnsfcap+coef(interaction)[8]*1+
+    coef(interaction)[9]*mean.treaty+coef(interaction)[10]*mean.develop+
+    coef(interaction)[11]*mean.exp+coef(interaction)[12]*mean.decade+
+    coef(interaction)[13]*mean.logdead+coef(interaction)[14]*(mean.logdead*1)
+  
+}
+
+#continuation: Using the concept of logit (ISLR 4.4)
+int.effect.control <- exp(storage.int.control)/(1+exp(storage.int.control))
+int.effect.treat <- exp(storage.int.treat)/(1+exp(storage.int.treat))
+int.marginal.effect <- int.effect.treat - int.effect.control
+
+#Plot the figure
+plot(1:315, org.marginal.effect,
+     type="l",
+     lty=3,
+     ylim = c(0, 0.8),
+     xlab = "Duration of wars in months",
+     ylab = "Marginal effects of UN peacekeeping operations")
+par(new=TRUE)
+plot(1:315, int.marginal.effect,
+     type="l",
+     ylim = c(0, 0.8),
+     xlab = "Duration of wars in months",
+     ylab = "Marginal effects of UN peacekeeping operations")
+legend("bottomleft", 
+       c("Original model", "Model with interaction"),
+       lty=c(3,1))
+
+
+##############################
+#Question 4 
+queen <- read.csv("https://course-resources.minerva.kgi.edu/uploaded_files/mke/00086677-3767/peace.csv")
+queen <- queen[c(-19, -47), ]
+
+#> which(is.na(queen$pbs2l) == TRUE)
+#integer(0)
+#> which(is.na(queen$pbs5l) == TRUE)
+#[1]  4 16 82 91 96
+queen <- subset(queen, pbs5l != "NA")
+#> which(is.na(queen$pbs5l) == TRUE)
+#integer(0)
+
+#Leveraging the insight from Question3,
+Tr <- rep(0, length(queen$uncint))
+Tr[which(queen$uncint != "None")] <- 1
+
+queen <- cbind(queen, Tr)
+
+#Convert the class of pbs2l and pbs5l to numeric
+#since the original class is factor (Success and Failure)
+queen$pbs2l <- as.numeric(queen$pbs2l)-1
+queen$pbs5l <- as.numeric(queen$pbs5l)-1
+#Now Failure =0, Success = 1
+
+
+###Logistic regression
+
+library(Matching)
+
+#Replacing untype 4 with Tr in the original model,
+reg2 <- glm(pbs2l ~ wartype + logcost + wardur + 
+              factnum + factnum2 + trnsfcap + Tr +
+              treaty + develop + exp + decade, 
+            data=queen,family = binomial)
+
+reg5 <- glm(pbs5l ~ wartype + logcost + wardur + 
+              factnum + factnum2 + trnsfcap + Tr +
+              treaty + develop + exp + decade, 
+            data=queen,family = binomial)
+
+summary(reg2)
+summary(reg5)
+MatchBalance(Tr ~ wartype + logcost + wardur + 
+               factnum + factnum2 + trnsfcap +
+               treaty + develop + exp + decade, 
+             data=queen, nboots=500)
+
+
+####Propensity score matching
+
+# Estimate the propensity model
+
+#For pbs2l, 
+XXX <- glm(Tr ~ wartype + logcost + wardur + 
+                      factnum + factnum2 + trnsfcap  + 
+                      treaty + develop + exp + decade, 
+                    data=queen, family = binomial)
+
+X  <- XXX$fitted
+Y1  <- queen$pbs2l
+Tr  <- queen$Tr
+
+pbs2l.pscore.match <- Match(Y=Y1, Tr=Tr, X=X, BiasAdjust = TRUE);
+summary(pbs2l.pscore.match, full = TRUE)
+
+#For pbs5l WITH bias adjustment, 
+Y2  <- queen$pbs5l
+
+pbs5l.pscore.match <- Match(Y=Y2, Tr=Tr, X=X, BiasAdjust = TRUE);
+summary(pbs5l.pscore.match, full = TRUE)
+
+
+#For p2s5l 
+MatchBalance(Tr ~ wartype + logcost + wardur + 
+               factnum + factnum2 + trnsfcap +
+               treaty + develop + exp + decade, 
+             data=queen, match.out=pbs2l.pscore.match, nboots=500)
+
+#For pbs5l 
+MatchBalance(Tr ~ wartype + logcost + wardur + 
+                                           factnum + factnum2 + trnsfcap +
+                                           treaty + develop + exp + decade, 
+                                         data=queen, match.out=pbs5l.pscore.match, nboots=500)
+
+
+###Genetic Matching
+
+attach(queen)
+#For pbs2l WITH bias adjustment, 
+#The covariates we want to match on are
+XX = cbind(wartype, logcost, wardur,
+           factnum, factnum2, trnsfcap,
+           treaty, develop, exp, decade)
+detach(queen)
+
+genout <- GenMatch(Tr=Tr, X=XX, estimand="ATT",
+                   pop.size=200, max.generations=50, wait.generations=25)
+
+mout1 <- Match(Y=Y1, Tr=Tr, X=XX, estimand="ATT", Weight.matrix=genout, BiasAdjust = TRUE)
+summary(mout1, full = TRUE)
+
+MatchBalance(Tr ~ wartype + logcost + wardur + 
+               factnum + factnum2 + trnsfcap +
+               treaty + develop + exp + decade, 
+             data=queen, match.out=mout1, nboots=500)
+
+#For pbs5l 
+mout2 <- Match(Y=Y2, Tr=Tr, X=XX, estimand="ATT", Weight.matrix=genout, BiasAdjust = TRUE)
+summary(mout2, full = TRUE)
+
+MatchBalance(Tr ~ wartype + logcost + wardur + 
+               factnum + factnum2 + trnsfcap +
+               treaty + develop + exp + decade, 
+             data=queen, match.out=mout2, nboots=500)
